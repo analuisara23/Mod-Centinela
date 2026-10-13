@@ -1,4 +1,3 @@
-<!doctype html><html><head><meta charset=utf8><meta name=viewport content="width=device-width,initial-scale=1,viewport-fit=cover"><style>:root{color-scheme:light;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}html{scroll-padding-top:env(safe-area-inset-top,0px)}body{margin:0;padding:0;font:14px -apple-system,BlinkMacSystemFont,sans-serif;background:#fff;color:#000}img{max-width:100%}[hidden]:not([hidden=until-found i]){display:none!important}</style></head><body>
 <title>Variables del Modelo de Fraude</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -106,6 +105,8 @@ body.show-tech .leaf .tech{display:block}
 .leaf[aria-current="true"]{box-shadow:0 0 0 3px var(--bg),0 0 0 5px var(--focus)}
 .leaf.dim,.add.dim{opacity:.2}
 .add{font-size:.8rem;font-weight:500;padding:5px 11px;border-radius:999px;border:1.5px dashed var(--on-bg-line);background:transparent;color:var(--on-bg-muted);cursor:pointer}
+.add{display:none!important}
+.leaf .nt{font-size:.76rem;font-style:italic;color:var(--muted)}
 .add:hover{color:var(--on-bg);border-color:var(--on-bg)}
 
 /* ---------- panel de decisión (solo visible al tocar una idea o agregar) ---------- */
@@ -150,11 +151,11 @@ body.show-tech .leaf .tech{display:block}
       <span class="sep" aria-hidden="true"></span>
       <div>
         <h1>Modelo de Fraude</h1>
-        <p>Señales de alerta · revisión con el equipo</p>
+        <p>Señales de alerta · decisiones de la reunión del 13 de octubre de 2026</p>
       </div>
     </div>
     <div class="tools">
-      <span class="status" id="status">Conectando…</span>
+      <span class="status" id="status">Versión final · solo lectura</span>
       <button class="btn" id="tech" aria-pressed="false">Nombres técnicos</button>
       <button class="btn primary" id="copy">Copiar resumen</button>
     </div>
@@ -241,8 +242,8 @@ const ORIG = RAMAS.flatMap(r => r.h.map(h => ({id:h[0], texto:h[1], porque:h[2],
 const RAMA = Object.fromEntries(RAMAS.map(r => [r.id, r]));
 const LEGACY = {"Datos repetidos":"g1","Vendedor y tienda":"g2","Operación del crédito":"g3","Cliente":"g4","Controles":"g5"};
 
-let decisiones = {}, nuevas = [], filtro = "todas", sel = null, modo = "idle", addRama = "g1";
-let db = null, canWrite = true;
+let decisiones = {"antig_domicilio": {"estado": "duda", "nota": "Por la respuesta de clientes"}, "antig_laboral": {"estado": "descartar", "nota": ""}, "dir_repetida": {"estado": "duda", "nota": "Calidad de datos"}, "fin_de_mes": {"estado": "duda", "nota": "Numero de transacciones en los ultimos dias del mes"}, "fpd_hist_tienda": {"estado": "duda", "nota": "Definicion del Cero pago"}, "fpd_hist_vendedor": {"estado": "duda", "nota": "definir que es un Cero pago"}, "ingreso_declarado": {"estado": "duda", "nota": "Ambiguedad de informacion"}, "mismo_dia": {"estado": "duda", "nota": "Depende del plan de credito"}, "plazo": {"estado": "duda", "nota": "Depende del perfil del cliente"}, "prima_pct": {"estado": "duda", "nota": "No nos avisa un posible fraude"}, "ventas_mes_vendedor": {"estado": "duda", "nota": "Definir % de conversion"}}, nuevas = [{"id": "n-mv6wfan8832k", "texto": "Correo electronico aparece en otro cliente", "porque": "", "rama": "g1", "signo": "?", "creado": 1791909120932}, {"id": "n-mv6wqwr1ryj1", "texto": "Contactabilidad", "porque": "Intencion de pago (codigos)", "rama": "g2", "signo": "?", "creado": 1791909662797}, {"id": "n-mv6x9aqvnk7c", "texto": "%Utilizacion de la Linea de Credito", "porque": "Utilizar mas X% - Tiempo X estimado", "rama": "g3", "signo": "?", "creado": 1791910520743}, {"id": "n-mv6xgf5ndmcl", "texto": "Pre aprobaciones", "porque": "X% de aceptcion no presencial (en linea)", "rama": "g3", "signo": "?", "creado": 1791910853051}, {"id": "n-mv6y17vikx8w", "texto": "Solvencia Interna", "porque": "Nivel de Riesgo del cliente al momento del contrato", "rama": "g4", "signo": "?", "creado": 1791911823390}, {"id": "n-mv6y1u3iejbe", "texto": "Behavior Score", "porque": "Riesgos", "rama": "g4", "signo": "?", "creado": 1791911852190}], filtro = "todas", sel = null, modo = "idle", addRama = "g1";
+let db = null, canWrite = false;
 const leafEls = new Map();
 const $ = s => document.querySelector(s);
 function el(tag, attrs={}, ...kids){
@@ -264,7 +265,8 @@ function buildLeaf(item, isNew){
   const main = el("span",{class:"main",text:item.texto});
   if (item.base) main.append(el("span",{class:"star",title:"Sugerida para empezar",text:" ★"}));
   const tx = el("span",{class:"tx"}, isNew ? el("span",{class:"tagn",text:"Nueva"}) : null, main,
-    isNew ? null : el("span",{class:"tech",text:item.id}));
+    isNew ? null : el("span",{class:"tech",text:item.id}),
+    decisiones[item.id]?.nota ? el("span",{class:"nt",text:"“"+decisiones[item.id].nota+"”"}) : null);
   const b = el("button",{class:"leaf"+(isNew?" is-new":""),type:"button","data-id":item.id,"data-st":"pendiente",style:colorVars(r)},
     el("span",{class:"ic","aria-hidden":"true"}), tx, badge(item.signo));
   b.addEventListener("click",()=>{ sel = item.id; modo="sel"; refresh(); });
@@ -343,7 +345,7 @@ function renderPanel(){
     const x = el("button",{class:"pill x",type:"button",text:"Cerrar"});
     x.addEventListener("click",()=>{ sel=null; modo="idle"; refresh(); });
     pills.append(x);
-    const nota = el("input",{class:"inp",id:"nota",placeholder:"Comentario del equipo (opcional)",maxlength:"200"});
+    const nota = el("input",{class:"inp",id:"nota",placeholder:"Sin comentario",maxlength:"200"});
     nota.value = decisiones[sel]?.nota || ""; nota.disabled = !canWrite;
     const id = sel; nota.addEventListener("change",()=>setNota(id, nota.value.trim()));
     pin.append(info, el("div",{class:"pact"}, pills, nota));
@@ -442,24 +444,9 @@ $("#copy").addEventListener("click",()=>{
   try { navigator.clipboard.writeText(txt).then(done, fallback); } catch { fallback(); }
 });
 
-buildMap(); refresh();
+buildMap(); syncNuevas(); refresh();
 new ResizeObserver(redraw).observe($("#map"));
 document.fonts?.ready.then(redraw);
 
-(async ()=>{
-  const cl = window.claude;
-  const off = ()=>{ $("#status").textContent = "Sin guardado: los cambios solo duran en esta vista"; };
-  if (!cl?.use) return off();
-  db = await cl.use("db"); if (!db) return off();
-  try { const u = await cl.use("user"); const w = u ? await u.can("data.write") : null; if (w===false){ canWrite=false; $("#status").textContent="Solo lectura"; } } catch {}
-  if (canWrite) $("#status").textContent = "Se guarda solo · todos ven los mismos cambios";
-  db.collection("decisiones").onSnapshot(s=>{ const d={}; s.docs.forEach(x=>d[x.id]=x.data()); decisiones=d; refresh(); },
-    ()=>{ $("#status").textContent="Se perdió la conexión; recarga la página"; });
-  db.collection("nuevas").orderBy("creado").onSnapshot(s=>{
-    nuevas = s.docs.map(x=>{ const v=x.data(); return {id:x.id, texto:v.texto||v.nombre||"", porque:v.porque||v.def||"", rama:v.rama||LEGACY[v.grupo]||"g5", signo:v.signo||"?", creado:v.creado}; });
-    syncNuevas(); refresh();
-  }, ()=>{});
-})();
+/* versión final estática: sin guardado */
 </script>
-
-</body></html>
